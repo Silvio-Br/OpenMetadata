@@ -6,7 +6,7 @@ on:
 
 jobs:
   trivy-scan:
-    name: Run Run and Scan
+    name: Run Build and Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -19,12 +19,16 @@ jobs:
           java-version: '25'
           cache: 'maven'
 
-      - name: Resolve Dependencies Offline-Friendly
-        run: mvn dependency:go-offline -B
-        continue-on-error: true
+      - name: Cache local Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - name: Install dependencies
-        run: mvn install -DskipTests -o
+        run: mvn install -DskipTests
         continue-on-error: true
 
       - name: Run Trivy vulnerability scanner
@@ -35,7 +39,8 @@ jobs:
           format: 'template'
           template: './intech-html.tpl'
           output: 'trivy-results.html'
-          skip-dirs: ingestion/src/metadata/data_quality/data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
