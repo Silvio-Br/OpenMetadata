@@ -1,0 +1,28 @@
+name: Trivy Security Scan
+
+on:
+  push:
+    branches: [ main, master, trivy ]
+
+jobs:
+  trivy-scan:
+    name: Run Trivy Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'template'
+          template: './intech-html.tpl' # Change this if your custom template has a different path/name, e.g., './my-custom-template.tpl'
+          output: 'trivy-results.html'
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-results.html
