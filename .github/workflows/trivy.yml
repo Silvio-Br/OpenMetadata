@@ -24,14 +24,16 @@ jobs:
           java-version: '25'
           cache: maven
 
-      # setup-java's Maven cache is already configured above.
-      # Resolve dependencies only if your build actually needs this.
-      - name: Resolve Maven dependencies
-        run: mvn -B dependency:go-offline
-        continue-on-error: true
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Build and populate Maven cache
+        run: |
+          mvn -B clean package -DskipTests
+      
+      - name: Verify OpenSearch dependency
+        run: |
+          find ~/.m2/repository/org/open-metadata/opensearch-deps/2.0.0 -type f -print
+      
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: .
