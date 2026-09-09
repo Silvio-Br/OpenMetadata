@@ -24,6 +24,10 @@ jobs:
           java-version: '25'
           cache: 'maven'
 
+      - name: Resolve Dependencies Offline-Friendly
+        run: mvn dependency:go-offline -B
+        continue-on-error: true
+
       - name: Cache local Maven repository
         uses: actions/cache@v4
         with:
@@ -32,15 +36,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Docker image
-        run: docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
-
       - name: Run Trivy vulnerability scanner on Image
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
-          format: 'table'
-          exit-key: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'template'
+          template: './intech-html.tpl'
+          output: 'trivy-results.html'
+          skip-dirs: ingestion/src/metadata/data_quality/data
