@@ -19,12 +19,12 @@ jobs:
           java-version: '25'
           cache: 'maven'
 
-      - name: Install dependencies
-        run: mvn install -DskipTests
+      - name: Resolve Dependencies Offline-Friendly
+        run: mvn dependency:go-offline -B
         continue-on-error: true
 
       - name: Install dependencies
-        run: mvn dependency:resolve
+        run: mvn install -DskipTests -o
         continue-on-error: true
 
       - name: Run Trivy vulnerability scanner
