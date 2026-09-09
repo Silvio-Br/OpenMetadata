@@ -1,13 +1,18 @@
-name: Trivy Security Scan
+name: Build and Security Scan
 
 on:
   push:
-    branches: [ main, master, trivy ]
+    branches:
+      - main
+      - master
+      - trivy
+  pull_request:
 
 jobs:
-  trivy-scan:
-    name: Run Build and Scan
-    runs-on: ubuntu-latest
+  build-and-scan:
+    name: Build Image and Run Trivy Scan
+    runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,23 +32,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Install dependencies
-        run: mvn install -DskipTests
-        continue-on-error: true
+      - name: Build Docker image
+        run: docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy vulnerability scanner on Image
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'template'
-          template: './intech-html.tpl'
-          output: 'trivy-results.html'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload scan results
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-results.html
+          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
+          format: 'table'
+          exit-key: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
