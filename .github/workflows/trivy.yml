@@ -1,4 +1,4 @@
-name: Build and Security Scan
+name: Security Scan
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-scan:
-    name: Build Image and Run Trivy Scan
+  security-scan:
+    name: Resolve Dependencies and Run Trivy Scan
     runs-on: ubuntu-24.04
 
     steps:
@@ -23,15 +23,28 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+          cache-dependency-path: '**/pom.xml'
 
-      - name: Build and populate Maven cache
+      # Télécharge les dépendances Maven dans ~/.m2
+      # sans compiler ni construire de JAR.
+      - name: Resolve Maven dependencies
         run: |
-          mvn -B clean package -DskipTests
-      
+          mvn -B dependency:resolve
+
+      # Vérifie que la dépendance qui provoquait le 429
+      # est bien présente dans le cache local.
       - name: Verify OpenSearch dependency
         run: |
-          find ~/.m2/repository/org/open-metadata/opensearch-deps/2.0.0 -type f -print
-      
+          DEP_PATH="$HOME/.m2/repository/org/open-metadata/opensearch-deps/2.0.0"
+
+          if [ ! -d "$DEP_PATH" ]; then
+            echo "::error::OpenSearch dependency not found in Maven cache"
+            exit 1
+          fi
+
+          echo "OpenSearch dependency found:"
+          find "$DEP_PATH" -type f -print
+
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
