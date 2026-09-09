@@ -10,7 +10,7 @@ on:
 
 jobs:
   security-scan:
-    name: Resolve Dependencies and Run Trivy Scan
+    name: Maven Dependency Scan
     runs-on: ubuntu-24.04
 
     steps:
@@ -25,28 +25,39 @@ jobs:
           cache: maven
           cache-dependency-path: '**/pom.xml'
 
-      # Télécharge les dépendances Maven dans ~/.m2
-      # sans compiler ni construire de JAR.
-      - name: Resolve Maven dependencies
+      # Download all dependencies and POM files.
+      # This does NOT compile or build the project.
+      - name: Populate Maven cache
         run: |
-          mvn -B dependency:resolve
+          mvn -B dependency:go-offline
 
-      # Vérifie que la dépendance qui provoquait le 429
-      # est bien présente dans le cache local.
-      - name: Verify OpenSearch dependency
+      # Verify the Maven artifacts required by Trivy.
+      - name: Verify Maven cache
         run: |
-          DEP_PATH="$HOME/.m2/repository/org/open-metadata/opensearch-deps/2.0.0"
+          echo "Checking OpenMetadata Maven artifacts..."
 
-          if [ ! -d "$DEP_PATH" ]; then
-            echo "::error::OpenSearch dependency not found in Maven cache"
+          find "$HOME/.m2/repository/org/open-metadata" \
+            -type f \
+            | sort \
+            | head -200
+
+          echo ""
+          echo "Checking platform 2.0.0..."
+
+          if [ ! -f \
+            "$HOME/.m2/repository/org/open-metadata/platform/2.0.0/platform-2.0.0.pom"
+          ]; then
+            echo "::error::platform-2.0.0.pom is missing from Maven cache"
             exit 1
           fi
 
-          echo "OpenSearch dependency found:"
-          find "$DEP_PATH" -type f -print
+          echo "platform-2.0.0.pom found."
 
+      # Run Trivy without secret scanning.
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
+        env:
+          MAVEN_OPTS: "-Dmaven.repo.local=$HOME/.m2/repository"
         with:
           scan-type: fs
           scan-ref: .
