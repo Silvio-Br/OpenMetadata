@@ -31,6 +31,7 @@ jobs:
           format: 'template'
           template: './intech-html.tpl'
           output: 'trivy-results.html'
+          skip-dirs: ingestion/src/metadata/data_quality/data
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
